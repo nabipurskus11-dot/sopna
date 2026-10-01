@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Weight ⇄ Price ক্যালকুলেটর</title>
+<style>
+:root{--bg:#fff;--fg:#222;--muted:#555;--line:#666;--brand:#53348a;--btn:#673ab7;--res:#12a89a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16131c;--fg:#eee;--muted:#aaa;--line:#999;--brand:#3d2566;--btn:#8456d6;--res:#3fd3c3}}
+:root[data-theme="dark"]{--bg:#16131c;--fg:#eee;--muted:#aaa;--line:#999;--brand:#3d2566;--btn:#8456d6;--res:#3fd3c3}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Roboto,system-ui,sans-serif}
+header{background:var(--brand);color:#fff;padding:16px 20px;font-size:22px}
+main{max-width:480px;margin:0 auto;padding:24px 18px}
+.modes{display:flex;justify-content:space-around;margin-bottom:32px}
+.modes label{display:flex;align-items:center;gap:8px;font-size:17px;cursor:pointer}
+.modes input{accent-color:var(--btn);width:22px;height:22px}
+.row{display:flex;align-items:center;gap:10px;font-size:17px;color:var(--muted);flex-wrap:wrap;margin-top:22px}
+input[type=number]{background:transparent;color:var(--fg);border:0;border-bottom:2px solid var(--line);font-size:22px;padding:8px 2px;outline:none;width:100%}
+input[type=number]:focus{border-color:var(--btn)}
+.row input[type=number]{width:70px;font-size:18px;text-align:center}
+select{background:transparent;color:var(--fg);border:0;border-bottom:1px solid var(--line);font-size:17px;padding:6px 2px}
+.pair{display:flex;gap:14px;align-items:flex-end}
+.pair>input{flex:1;min-width:0}
+.extra{display:flex;align-items:flex-end;gap:8px;flex:1;min-width:0}
+.extra select{padding-bottom:10px}
+.hide{display:none!important}
+#res{color:var(--res);font-weight:700;font-size:21px;text-align:center;margin:28px 0 14px;min-height:30px;word-break:break-word}
+.auto{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.auto input{width:20px;height:20px;accent-color:var(--btn)}
+button{width:100%;border:0;border-radius:30px;background:var(--btn);color:#fff;font-size:18px;font-weight:600;padding:16px;cursor:pointer}
+button:focus-visible,select:focus-visible{outline:3px solid var(--res);outline-offset:2px}
+</style>
+</head>
+<body>
+<header>Weight &lt;-&gt; Price</header>
+<main>
+  <div class="modes">
+    <label><input type="radio" name="mode" value="w2p" checked> Weight to price</label>
+    <label><input type="radio" name="mode" value="p2w"> Price to weight</label>
+  </div>
+
+  <div class="row" style="margin-top:0">Enter price for
+    <input type="number" id="baseQty" value="1" min="0" step="any">
+    <select id="baseUnit"></select>
+  </div>
+  <input type="number" id="price" value="12000" step="any" inputmode="decimal" aria-label="Price">
+
+  <div class="row"><span id="lbl1">Enter weight in</span>
+    <select id="outUnit"></select>
+    <span id="lbl2">to calculate price</span>
+  </div>
+  <div class="pair">
+    <input type="number" id="amount" value="200" step="any" inputmode="decimal" aria-label="Amount">
+    <div class="extra" id="extraBox"><input type="number" id="extra" placeholder="0" step="any" inputmode="decimal" aria-label="Extra kg"><select id="exUnit" aria-label="Extra unit"></select></div>
+  </div>
+
+  <div id="res" aria-live="polite"></div>
+  <label class="auto"><input type="checkbox" id="auto"> Auto calculate</label>
+  <button id="go">Calculate Price</button>
+</main>
+<script>
+const U={mg:1e-6,g:.001,kg:1,mon:40,quintal:100,ton:1000,oz:0.028349523125,lb:0.45359237};
+const $=id=>document.getElementById(id);
+for(const s of [$('baseUnit'),$('outUnit'),$('exUnit')])
+  Object.keys(U).forEach(u=>s.add(new Option(u,u)));
+$('baseUnit').value='kg';$('outUnit').value='kg';$('exUnit').value='kg';
+
+const fmt=n=>Number.isFinite(n)?(+n.toFixed(4)).toString():'—';
+const mode=()=>document.querySelector('input[name=mode]:checked').value;
+
+function showExtra(){
+  $('extraBox').classList.toggle('hide',mode()!=='w2p');
+}
+function calc(){
+  const q=parseFloat($('baseQty').value),p=parseFloat($('price').value);
+  let a=parseFloat($('amount').value);
+  const useX=!$('extraBox').classList.contains('hide');
+  const ex=useX?(parseFloat($('extra').value)||0):0;
+  if(isNaN(a)&&ex>0)a=0;
+  if(!(q>0)||isNaN(p)||isNaN(a)){$('res').textContent='সব ঘর পূরণ করুন';return}
+  const perKg=p/(q*U[$('baseUnit').value]); // price per 1 kg
+  const u=$('outUnit').value;
+  if(mode()==='w2p'){
+    const eu=$('exUnit').value,totalKg=a*U[u]+ex*U[eu];
+    const label=ex>0?`${fmt(a)} ${u} ${fmt(ex)} ${eu}`:`${fmt(a)} ${u}`;
+    $('res').textContent=`Price of ${label} = ${fmt(perKg*totalKg)}`;
+  }else{
+    const w=a/perKg/U[u];
+    let t=`${fmt(a)} will buy ${fmt(w)} ${u}`;
+    if(u!=='kg'&&U[u]>=1){
+      const whole=Math.floor(w+1e-9),rem=(w-whole)*U[u];
+      if(whole>0&&rem>0.0005)t+=` (${whole} ${u} ${fmt(rem)} kg)`;
+    }
+    $('res').textContent=t;
+  }
+}
+function setLabels(){
+  const w=mode()==='w2p';
+  $('lbl1').textContent=w?'Enter weight in':'Enter price to get weight in';
+  $('lbl2').textContent=w?'to calculate price':'';
+  $('go').textContent=w?'Calculate Price':'Calculate Weight';
+  $('amount').setAttribute('aria-label',w?'Weight':'Price');
+  $('amount').value='';$('extra').value='';$('res').textContent='';showExtra();
+}
+document.querySelectorAll('input[name=mode]').forEach(r=>r.onchange=setLabels);
+$('go').onclick=calc;
+$('outUnit').addEventListener('change',showExtra);
+for(const id of ['baseQty','price','amount','extra','baseUnit','outUnit','exUnit'])
+  $(id).addEventListener('input',()=>{if($('auto').checked)calc()});
+showExtra();calc();
+</script>
+</body>
+</html>
